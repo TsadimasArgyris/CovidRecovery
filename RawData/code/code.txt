@@ -1,0 +1,170 @@
+#------------------------------------------------------------------#
+#
+# Purpose Data Engineering Homework 2 (Paycheck Protection Program)
+#
+# Author Tsadimas Anargyros
+#
+# Date  May 2024b
+#
+#------------------------------------------------------------------#
+
+import pandas as pd
+
+# map variable types 
+dtype_mapping = {
+    'LoanNumber': 'str', 'DateApproved': 'str', 'BorrowerCity': 'str', 'BorrowerState': 'category',
+    'BorrowerZip': 'str', 'LoanStatusDate': 'str', 'LoanStatus': 'category', 'Term': 'Int32',
+    'SBAGuarantyPercentage': 'float32', 'InitialApprovalAmount': 'float32', 'CurrentApprovalAmount': 'float32',
+    'UndisbursedAmount': 'float32', 'ServicingLenderName': 'str', 'ServicingLenderCity': 'str',
+    'ServicingLenderState': 'category', 'JobsReported': 'float32', 'BusinessType': 'category', 'Race': 'category',
+    'Ethnicity': 'category', 'Gender': 'category', 'Veteran': 'category', 'NonProfit': 'category',
+    'ForgivenessAmount': 'float32', 'ForgivenessDate': 'str'
+}
+# select appropriate columns for analysis
+selected_columns = ['LoanNumber', 'DateApproved', 'BorrowerName', 'BorrowerCity', 'BorrowerState', 'BorrowerZip',
+    'LoanStatusDate', 'LoanStatus', 'Term', 'SBAGuarantyPercentage', 'InitialApprovalAmount',
+    'CurrentApprovalAmount', 'UndisbursedAmount', 'ServicingLenderName', 'ServicingLenderCity',
+    'ServicingLenderState', 'JobsReported', 'BusinessType', 'Race', 'Ethnicity', 'Gender', 'Veteran',
+    'NonProfit', 'ForgivenessAmount', 'ForgivenessDate']
+
+import os
+
+# Define the folder path
+folder_path = 'C:/MsC/Data Engineering/Homeworks/HWK2/CovidRecovery/RawData'
+output_folder = 'C:/MsC/Data Engineering/Homeworks/HWK2/CovidRecovery/RawData'
+
+
+def process_file(file_path, output_path):
+    
+    # Load the data with specified data types and only selected columns
+    df = pd.read_csv(file_path, usecols=selected_columns, dtype=dtype_mapping)
+    
+    # Take a random sample of 10% of the data
+    df_sample = df.sample(frac=0.1, random_state=1)
+    
+    # Save the sampled data of each file to a new CSV file
+    df_sample.to_csv(output_path, index=False)
+    return df_sample
+# create an empty list to fill with each file
+results = []
+
+# list of files to work with
+csv_files = [f"public_up_to_150k_{i}_230930.csv" for i in range(1, 13)]
+csv_files = [os.path.join(folder_path, f) for f in csv_files]
+
+# process each file
+for file_path in csv_files:
+    output_path = os.path.join(output_folder, f'sampled_{os.path.basename(file_path)}')
+    df_sample = process_file(file_path, output_path)
+    results.append(df_sample)
+
+# Concatenate all DataFrames in the results list into a single DataFrame
+all_sampled_data_df = pd.concat(results, ignore_index=True)
+
+# Display the whole DataFrame info and memory usage
+print(all_sampled_data_df.info(memory_usage='deep'))
+
+# Save the final concatenated DataFrame to a CSV file
+all_sampled_data_df.to_csv(os.path.join(output_folder, 'all_sampled_data.csv'), index=False)
+
+# Display the head of the concatenated DataFrame
+print(all_sampled_data_df.head())
+
+
+# Rename the DataFrame all_sampled_data_df by assigning it to a new variable
+data = all_sampled_data_df
+
+# Delete the original DataFrame variable
+del all_sampled_data_df
+
+# display the first 5 rows of data
+print(data.head())
+
+# examine if all the values of non profit are: NaN
+data['NonProfit'].isna().all()
+
+# drop column NonProfit since 98% of its observations are missing, and SBAGuarantyPercentage since all its variables are 100
+data = data.drop(columns=['NonProfit', 'SBAGuarantyPercentage'])
+
+# print the dataframe again
+print(data.head())
+
+# load packages to make plots
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+# Set the aesthetic style of the plots
+sns.set_style("whitegrid")
+
+# Define the figure and axes for subplots
+fig, axs = plt.subplots(2, 2, figsize=(14, 12))
+
+# Precompute the counts for Ethnicity
+ethnicity_counts = data['Ethnicity'].value_counts()
+
+# Plot for Ethnicity
+sns.barplot(y=ethnicity_counts.index, x=ethnicity_counts.values, palette='Blues_d', ax=axs[0, 0])
+axs[0, 0].set_title('Ethnicity Distribution')
+axs[0, 0].set_xlabel('Count')
+axs[0, 0].set_ylabel('Ethnicity')
+
+# Precompute the counts for Race
+race_counts = data['Race'].value_counts()
+
+# Plot for Race
+sns.barplot(y=race_counts.index, x=race_counts.values, palette='Greens_d', ax=axs[0, 1])
+axs[0, 1].set_title('Race Distribution')
+axs[0, 1].set_xlabel('Count')
+axs[0, 1].set_ylabel('Race')
+
+# Precompute the counts for Gender
+gender_counts = data['Gender'].value_counts()
+
+# Plot for Gender
+sns.barplot(y=gender_counts.index, x=gender_counts.values, palette='Reds_d', ax=axs[1, 0])
+axs[1, 0].set_title('Gender Distribution')
+axs[1, 0].set_xlabel('Count')
+axs[1, 0].set_ylabel('Gender')
+
+# Precompute the counts for BorrowerState
+state_counts = data['BorrowerState'].value_counts().reset_index()
+state_counts.columns = ['BorrowerState', 'Count']
+
+# Generate a color palette with the same number of colors as the number of states
+palette = sns.color_palette("Blues_d", len(state_counts))
+
+# Sort the palette based on the count
+palette = palette[::-1]
+
+# Plot for BorrowerState
+sns.barplot(x='Count', y='BorrowerState', data=state_counts, palette=palette, ax=axs[1, 1], orient='h')
+axs[1, 1].set_title('Borrower State Distribution')
+axs[1, 1].set_xlabel('Count')
+axs[1, 1].set_ylabel('State')
+
+# Adjust layout
+plt.tight_layout()
+
+# Show plot
+plt.show()
+
+# Step 1: Aggregate loan amounts by state
+state_loan_totals = data.groupby('BorrowerState')['CurrentApprovalAmount'].sum().reset_index()
+state_loan_totals.rename(columns={'CurrentApprovalAmount': 'TotalLoanAmount'}, inplace=True)
+#print(state_loan_totals)
+
+
+file_path = "C:/MsC/Data Engineering/Homeworks/HWK2/CovidRecovery/RawData/all_sampled_data.csv"
+
+# Load a small sample of the data using ISO-8859-1 encoding
+pop_est_df = pd.read_csv(file_path, encoding='ISO-8859-1')
+
+# Display the DataFrame info
+print(pop_est_df.info(memory_usage='deep'))
+
+# Display the first few rows to verify
+print(pop_est_df.head(20))
+
+# Display the columns of the DataFrame
+print(pop_est_df.columns)
